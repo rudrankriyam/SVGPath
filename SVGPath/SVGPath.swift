@@ -3,30 +3,35 @@
 //  SVGPath
 //
 //  Created by Tim Wood on 1/21/15.
+//  Edited by Rudrank Riyam on 9/18/19.
 //  Copyright (c) 2015 Tim Wood. All rights reserved.
 //
 
-import Foundation
-import CoreGraphics
+import SwiftUI
 
-// MARK: UIBezierPath
+// MARK: Path
 
-public extension UIBezierPath {
-    convenience init (svgPath: String) {
+public extension Path {
+    init(svgPath: String) {
         self.init()
         applyCommands(from: SVGPath(svgPath))
     }
 }
 
-private extension UIBezierPath {
-    func applyCommands(from svgPath: SVGPath) {
+@available(iOS 13.0, *)
+private extension Path {
+    mutating func applyCommands(from svgPath: SVGPath) {
         for command in svgPath.commands {
             switch command.type {
-            case .move: move(to: command.point)
-            case .line: addLine(to: command.point)
-            case .quadCurve: addQuadCurve(to: command.point, controlPoint: command.control1)
-            case .cubeCurve: addCurve(to: command.point, controlPoint1: command.control1, controlPoint2: command.control2)
-            case .close: close()
+            case .move:
+                move(to: command.point)
+
+            case .line:
+                addLine(to: command.point)
+
+            case .quadCurve: addQuadCurve(to: command.point, control: command.control1)
+            case .cubeCurve: addCurve(to: command.point, control1: command.control1, control2: command.control2)
+            case .close: closeSubpath()
             }
         }
     }
@@ -48,8 +53,8 @@ public class SVGPath {
     private var increment: Int = 2
     private var numbers = ""
 
-    public init (_ string: String) {
-        for char in string.characters {
+    public init(_ string: String) {
+        for char in string {
             switch char {
             case "M": use(.absolute, 2, move)
             case "m": use(.relative, 2, move)
@@ -74,15 +79,15 @@ public class SVGPath {
         }
         finishLastCommand()
     }
-    
-    private func use (_ coords: Coordinates, _ increment: Int, _ builder: @escaping SVGCommandBuilder) {
+
+    private func use(_ coords: Coordinates, _ increment: Int, _ builder: @escaping SVGCommandBuilder) {
         finishLastCommand()
         self.builder = builder
         self.coords = coords
         self.increment = increment
     }
-    
-    private func finishLastCommand () {
+
+    private func finishLastCommand() {
         for command in take(SVGPath.parseNumbers(numbers), increment: increment, coords: coords, last: commands.last, callback: builder) {
             commands.append(coords == .relative ? command.relative(to: commands.last) : command)
         }
@@ -97,11 +102,11 @@ private let locale = Locale(identifier: "en_US")
 
 
 public extension SVGPath {
-    class func parseNumbers (_ numbers: String) -> [CGFloat] {
+    class func parseNumbers(_ numbers: String) -> [CGFloat] {
         var all:[String] = []
         var curr = ""
         var last = ""
-        
+
         for char in numbers.unicodeScalars {
             let next = String(char)
             if next == "-" && last != "" && last != "E" && last != "e" {
@@ -117,21 +122,21 @@ public extension SVGPath {
             }
             last = next
         }
-        
+
         all.append(curr)
-        
-        return all.map { CGFloat(NSDecimalNumber(string: $0, locale: locale)) }
+
+        return all.map { CGFloat(truncating: NSDecimalNumber(string: $0, locale: locale)) }
     }
 }
 
 // MARK: Commands
 
 public struct SVGCommand {
-    public var point:CGPoint
-    public var control1:CGPoint
-    public var control2:CGPoint
-    public var type:Kind
-    
+    public var point: CGPoint
+    public var control1: CGPoint
+    public var control2: CGPoint
+    public var type: Kind
+
     public enum Kind {
         case move
         case line
@@ -139,34 +144,34 @@ public struct SVGCommand {
         case quadCurve
         case close
     }
-    
-    public init () {
+
+    public init() {
         let point = CGPoint()
         self.init(point, point, point, type: .close)
     }
-    
-    public init (_ x: CGFloat, _ y: CGFloat, type: Kind) {
+
+    public init(_ x: CGFloat, _ y: CGFloat, type: Kind) {
         let point = CGPoint(x: x, y: y)
         self.init(point, point, point, type: type)
     }
-    
-    public init (_ cx: CGFloat, _ cy: CGFloat, _ x: CGFloat, _ y: CGFloat) {
+
+    public init(_ cx: CGFloat, _ cy: CGFloat, _ x: CGFloat, _ y: CGFloat) {
         let control = CGPoint(x: cx, y: cy)
         self.init(control, control, CGPoint(x: x, y: y), type: .quadCurve)
     }
-    
-    public init (_ cx1: CGFloat, _ cy1: CGFloat, _ cx2: CGFloat, _ cy2: CGFloat, _ x: CGFloat, _ y: CGFloat) {
+
+    public init(_ cx1: CGFloat, _ cy1: CGFloat, _ cx2: CGFloat, _ cy2: CGFloat, _ x: CGFloat, _ y: CGFloat) {
         self.init(CGPoint(x: cx1, y: cy1), CGPoint(x: cx2, y: cy2), CGPoint(x: x, y: y), type: .cubeCurve)
     }
-    
-    public init (_ control1: CGPoint, _ control2: CGPoint, _ point: CGPoint, type: Kind) {
+
+    public init(_ control1: CGPoint, _ control2: CGPoint, _ point: CGPoint, type: Kind) {
         self.point = point
         self.control1 = control1
         self.control2 = control2
         self.type = type
     }
-    
-    fileprivate func relative (to other:SVGCommand?) -> SVGCommand {
+
+    fileprivate func relative(to other: SVGCommand?) -> SVGCommand {
         if let otherPoint = other?.point {
             return SVGCommand(control1 + otherPoint, control2 + otherPoint, point + otherPoint, type: type)
         }
@@ -176,11 +181,11 @@ public struct SVGCommand {
 
 // MARK: CGPoint helpers
 
-private func +(a:CGPoint, b:CGPoint) -> CGPoint {
+private func + (a: CGPoint, b: CGPoint) -> CGPoint {
     return CGPoint(x: a.x + b.x, y: a.y + b.y)
 }
 
-private func -(a:CGPoint, b:CGPoint) -> CGPoint {
+private func - (a: CGPoint, b: CGPoint) -> CGPoint {
     return CGPoint(x: a.x - b.x, y: a.y - b.y)
 }
 
@@ -188,13 +193,13 @@ private func -(a:CGPoint, b:CGPoint) -> CGPoint {
 
 private typealias SVGCommandBuilder = ([CGFloat], SVGCommand?, Coordinates) -> SVGCommand
 
-private func take (_ numbers: [CGFloat], increment: Int, coords: Coordinates, last: SVGCommand?, callback: SVGCommandBuilder) -> [SVGCommand] {
+private func take(_ numbers: [CGFloat], increment: Int, coords: Coordinates, last: SVGCommand?, callback: SVGCommandBuilder) -> [SVGCommand] {
     var out: [SVGCommand] = []
     var lastCommand:SVGCommand? = last
 
     let count = (numbers.count / increment) * increment
     var nums:[CGFloat] = [0, 0, 0, 0, 0, 0];
-    
+
     for i in stride(from: 0, to: count, by: increment) {
         for j in 0 ..< increment {
             nums[j] = numbers[i + j]
@@ -202,43 +207,43 @@ private func take (_ numbers: [CGFloat], increment: Int, coords: Coordinates, la
         lastCommand = callback(nums, lastCommand, coords)
         out.append(lastCommand!)
     }
-    
+
     return out
 }
 
 // MARK: Mm - Move
 
-private func move (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
+private func move(_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
     return SVGCommand(numbers[0], numbers[1], type: .move)
 }
 
 // MARK: Ll - Line
 
-private func line (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
+private func line(_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
     return SVGCommand(numbers[0], numbers[1], type: .line)
 }
 
 // MARK: Vv - Vertical Line
 
-private func lineVertical (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
+private func lineVertical(_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
     return SVGCommand(coords == .absolute ? last?.point.x ?? 0 : 0, numbers[0], type: .line)
 }
 
 // MARK: Hh - Horizontal Line
 
-private func lineHorizontal (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
+private func lineHorizontal(_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
     return SVGCommand(numbers[0], coords == .absolute ? last?.point.y ?? 0 : 0, type: .line)
 }
 
 // MARK: Qq - Quadratic Curve To
 
-private func quadBroken (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
+private func quadBroken(_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
     return SVGCommand(numbers[0], numbers[1], numbers[2], numbers[3])
 }
 
 // MARK: Tt - Smooth Quadratic Curve To
 
-private func quadSmooth (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
+private func quadSmooth(_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
     var lastControl = last?.control1 ?? CGPoint()
     let lastPoint = last?.point ?? CGPoint()
     if (last?.type ?? .line) != .quadCurve {
@@ -253,13 +258,13 @@ private func quadSmooth (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordi
 
 // MARK: Cc - Cubic Curve To
 
-private func cubeBroken (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
+private func cubeBroken(_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
     return SVGCommand(numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5])
 }
 
 // MARK: Ss - Smooth Cubic Curve To
 
-private func cubeSmooth (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
+private func cubeSmooth(_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
     var lastControl = last?.control2 ?? CGPoint()
     let lastPoint = last?.point ?? CGPoint()
     if (last?.type ?? .line) != .cubeCurve {
@@ -274,6 +279,6 @@ private func cubeSmooth (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordi
 
 // MARK: Zz - Close Path
 
-private func close (_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
+private func close(_ numbers: [CGFloat], last: SVGCommand?, coords: Coordinates) -> SVGCommand {
     return SVGCommand()
 }

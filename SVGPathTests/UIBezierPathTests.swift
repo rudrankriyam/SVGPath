@@ -8,15 +8,17 @@
 
 import XCTest
 import SVGPath
+import SwiftUI
 
-class UIBezierPathTests: XCTestCase {
+
+class PathTests: XCTestCase {
     func testMoveAndLineTo() {
         //   234
         // 4 XXX
         // 5 XXX
         // 6 XXX
         
-        let path = UIBezierPath(svgPath: "M2 4L2 6 4 6 4 4Z")
+        let path = Path(svgPath: "M2 4L2 6 4 6 4 4Z")
         
         // 4 corners
         XCTAssert(path.contains(CGPoint(x: 2.01, y: 4.01)), "square should contain 2.01, 4.01")
@@ -41,7 +43,7 @@ class UIBezierPathTests: XCTestCase {
         // 5 XXx
         // 6 XXX
         
-        let path = UIBezierPath(svgPath: "M2 4Q4 4 4 6L2 6Z")
+        let path = Path(svgPath: "M2 4Q4 4 4 6L2 6Z")
         
         // 4 corners
         XCTAssert( path.contains(CGPoint(x: 2.01, y: 4.01)), "curve should contain 2.01, 4.01")
@@ -60,7 +62,7 @@ class UIBezierPathTests: XCTestCase {
         // 5 XXx
         // 6 Xx
         
-        let path = UIBezierPath(svgPath: "M2 4C4 4 4 6 2 6Z")
+        let path = Path(svgPath: "M2 4C4 4 4 6 2 6Z")
         
         // 4 corners
         XCTAssert( path.contains(CGPoint(x: 2.01, y: 4.01)), "curve should contain 2.01, 4.01")
@@ -79,7 +81,7 @@ class UIBezierPathTests: XCTestCase {
         // 5 |X| |X|
         // 6 |X| |X|
         
-        let path = UIBezierPath(svgPath: "M3 6L3 4 2 4 2 6ZL4 4 5 4 5 6 4 6 4 4")
+        let path = Path(svgPath: "M3 6L3 4 2 4 2 6ZL4 4 5 4 5 6 4 6 4 4")
         
         // 4 corners left square
         XCTAssert(path.contains(CGPoint(x: 2.01, y: 4.01)), "square should contain 2.01, 4.01")
